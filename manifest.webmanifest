@@ -1,0 +1,16 @@
+{
+  "name": "Crypto Buy Score",
+  "short_name": "Buy Score",
+  "description": "Wynik okazji zakupowej 0–100 i plan DCA dla BTC, ETH i ADA.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050b14",
+  "theme_color": "#050b14",
+  "lang": "pl",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

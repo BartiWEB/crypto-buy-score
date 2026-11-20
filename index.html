@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crypto Buy Score</title>
+<meta name="description" content="Wynik okazji zakupowej 0–100 i plan DCA dla BTC, ETH i ADA na żywo.">
+<meta name="theme-color" content="#050b14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="hud">
+  <header class="head">
+    <div class="sys"><span class="dot" id="status-dot"></span><span id="status">Łączenie z rynkiem…</span></div>
+    <h1>Crypto Buy Score</h1>
+    <p class="muted">Wynik 0–100: im wyżej, tym taniej moneta względem własnej historii. Ceny odświeżają się co minutę. To narzędzie analityczne, nie porada inwestycyjna.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Moneta">
+    <button type="button" class="tab on" role="tab" aria-selected="true" data-coin="BTC">BTC</button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-coin="ETH">ETH</button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-coin="ADA">ADA</button>
+  </nav>
+
+  <section class="hero">
+    <div class="gauge" id="gauge" aria-live="polite"></div>
+    <div class="tiles">
+      <div class="tile"><span class="lbl">Mnożnik DCA</span><span class="big warn" id="t-mult">—</span><span class="muted">względem stałej kwoty</span></div>
+      <div class="tile"><span class="lbl" id="t-price-lbl">Cena</span><span class="big" id="t-price">—</span><span class="muted"><span id="t-chg">—</span> w 24h</span></div>
+      <div class="tile"><span class="lbl">Fear &amp; Greed (rynek)</span><span class="big" id="t-fng">—</span><span class="muted" id="t-fng-sub">—</span></div>
+      <div class="tile"><span class="lbl">Backtest od 2018</span><span class="big" id="t-bt">—</span><span class="muted">więcej monet za ten sam budżet</span></div>
+    </div>
+  </section>
+  <p class="note" id="alt-note" hidden></p>
+
+  <section class="sec" id="plan">
+    <h2>Plan zakupów na ten tydzień</h2>
+    <p class="muted">Kwota = budżet × udział × mnożnik danej monety, łącznie najwyżej 2× budżetu. Ustawienia zapisują się na tym urządzeniu.</p>
+    <form class="form" id="plan-form">
+      <label class="field">Budżet tygodniowy<input id="p-budget" type="number" min="0" step="10" value="200" inputmode="decimal"></label>
+      <label class="field">BTC %<input id="p-BTC" type="number" min="0" max="100" step="5" value="70"></label>
+      <label class="field">ETH %<input id="p-ETH" type="number" min="0" max="100" step="5" value="25"></label>
+      <label class="field">ADA %<input id="p-ADA" type="number" min="0" max="100" step="5" value="5"></label>
+    </form>
+    <div class="tw"><table><thead><tr><th>Moneta</th><th class="num">Udział</th><th class="num">Wynik</th><th class="num">Mnożnik</th><th class="num">Kwota</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
+    <p>Razem w tym tygodniu: <span class="total" id="plan-total">—</span></p>
+  </section>
+
+  <section class="sec">
+    <h2>Z czego składa się wynik</h2>
+    <div class="tw"><table><thead><tr><th>Wskaźnik</th><th>Wartość</th><th class="num">Punkty</th><th class="num">Maks.</th><th>Uwagi</th></tr></thead><tbody id="parts-rows"></tbody></table></div>
+  </section>
+
+  <section class="sec">
+    <h2>Cena pokolorowana wynikiem</h2>
+    <div class="legend"><span><i class="c-red"></i>&lt;30 (0,5×)</span><span><i class="c-slate"></i>30–50 (1×)</span><span><i class="c-amber"></i>50–70 (1,5×)</span><span><i class="c-green"></i>70+ (2–3×)</span></div>
+    <div class="chart" id="ch-history"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Cykle: obecny na tle poprzednich</h2>
+    <form class="form"><label class="field">Punkt odniesienia<select id="anchor"><option value="peak">Szczyt cyklu</option><option value="halving">Dzień halvingu</option></select></label></form>
+    <div class="chart" id="ch-cycles"></div>
+    <div class="tw"><table><thead><tr><th>Cykl</th><th>Szczyt</th><th class="num">Dni po halvingu</th><th>Dno po szczycie</th><th class="num">Spadek</th><th class="num">Szczyt → dno</th></tr></thead><tbody id="cycle-rows"></tbody></table></div>
+    <form class="form"><label class="field">Okno zmiany ceny<select id="win"><option value="30">30 dni</option><option value="90" selected>90 dni</option><option value="180">180 dni</option><option value="365">365 dni</option></select></label></form>
+    <div class="chart small" id="ch-window"></div>
+    <h2>Sezonowość: zwroty miesięczne w %</h2>
+    <div class="chart" id="ch-heat"></div>
+  </section>
+
+  <section class="sec">
+    <h2>Backtest: zwykłe DCA vs DCA z mnożnikiem</h2>
+    <div class="tw"><table><thead><tr><th>Okres</th><th>Strategia</th><th class="num">Wpłacono</th><th class="num">Ilość</th><th class="num">Śr. cena</th><th class="num">Wartość / wpłaty</th></tr></thead><tbody id="bt-rows"></tbody></table></div>
+    <p class="muted">100 $ tygodniowo, wycena po cenie z 23.05.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.</p>
+  </section>
+
+  <footer class="muted foot">Dane: CoinGecko (ceny), alternative.me (Fear &amp; Greed), Coin Metrics (historia on-chain do 05.2026). Realized price i MVRV po tej dacie są przybliżone.</footer>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

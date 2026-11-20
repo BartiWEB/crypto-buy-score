@@ -1,0 +1,10 @@
+{
+  "name": "crypto-buy-score",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "alert": "node scripts/alert.mjs",
+    "serve": "npx --yes http-server -c-1 ."
+  },
+  "engines": {"node": ">=20"}
+}
