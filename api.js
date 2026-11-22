@@ -27,8 +27,15 @@ export async function fetchFng() {
   return {value: +d[0]?.value, label: d[0]?.value_classification, week: +d[7]?.value, month: +d[30]?.value};
 }
 
-// Wykres ceny w wybranym zakresie (1 dzień: co 5 min, 7–90 dni: co godzinę): [{t: ms, price}]
-export async function fetchRange(id, days) {
-  const j = await getJson(`${CG}/coins/${id}/market_chart?vs_currency=usd&days=${days}`);
-  return (j.prices || []).map(([t, price]) => ({t, price}));
+// Jedno zapytanie dla wszystkich monet: cena, zmiana 24h i 7 dni co godzinę.
+// {bitcoin: {usd, usd_24h_change, spark: [{t, price}]}, ...}
+export async function fetchMarkets(ids) {
+  const j = await getJson(`${CG}/coins/markets?vs_currency=usd&ids=${ids.join(',')}&sparkline=true&price_change_percentage=24h`);
+  const out = {};
+  for (const c of j) {
+    const sp = c.sparkline_in_7d?.price || [], end = Date.parse(c.last_updated) || Date.now();
+    out[c.id] = {usd: c.current_price, usd_24h_change: c.price_change_percentage_24h,
+      spark: sp.map((price, i) => ({t: end - (sp.length - 1 - i) * 3600e3, price}))};
+  }
+  return out;
 }

@@ -1,5 +1,5 @@
 import {COINS, mergeSeries, liveScore, plan, cycles, windowChanges, monthly, fmtUsd, bucket} from './score.js';
-import {fetchPrices, fetchChart, fetchFng, fetchRange} from './api.js';
+import {fetchMarkets, fetchChart, fetchFng} from './api.js';
 
 const COLOR = {red: 'var(--red)', slate: 'var(--slate)', amber: 'var(--amber)', green: 'var(--green)'};
 const CYCLE_COLOR = {'2012': 'var(--violet)', '2016': 'var(--amber)', '2020': 'var(--green)', '2024': 'var(--cyan)'};
@@ -14,7 +14,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* brak zapisu */ } }
 };
 
-const state = {coin: store.get('coin', 'BTC'), range: store.get('range', 7), hist: null, charts: {}, prices: null, fng: null, series: {}, scores: {}, ranges: {}};
+const state = {coin: store.get('coin', 'BTC'), range: store.get('range', 7), hist: null, charts: {}, prices: null, fng: null, series: {}, scores: {}, };
+const HOUR = 3600e3, DAYMS = 864e5;
 
 function status(text, kind) { $('status').textContent = text; $('status-dot').className = 'dot ' + (kind || ''); }
 
@@ -23,37 +24,35 @@ async function loadHistory() {
   const r = await fetch('data/history.json');
   state.hist = (await r.json()).coins;
 }
-async function loadCharts() {
-  const res = await Promise.allSettled(COINS.map((c) => fetchChart(c.id)));
-  res.forEach((r, i) => { if (r.status === 'fulfilled') state.charts[COINS[i].sym] = r.value; });
+// Wykresy dzienne (365 dni) trzymane na urządzeniu przez godzinę, żeby nie wyczerpać limitu CoinGecko.
+async function loadCharts(force) {
+  const cached = store.get('charts', null);
+  if (cached) state.charts = cached.data;
+  if (!force && cached && Date.now() - cached.at < HOUR) return;
+  for (const c of COINS) {
+    try { state.charts[c.sym] = await fetchChart(c.id); } catch { /* zostają dane z pamięci */ }
+  }
+  store.set('charts', {at: Date.now(), data: state.charts});
 }
 async function loadLive() {
-  const [p, f] = await Promise.allSettled([fetchPrices(COINS.map((c) => c.id)), fetchFng()]);
-  if (p.status === 'fulfilled') state.prices = p.value;
-  if (f.status === 'fulfilled') state.fng = f.value;
+  const [p, f] = await Promise.allSettled([fetchMarkets(COINS.map((c) => c.id)), fetchFng()]);
+  if (p.status === 'fulfilled') { state.prices = p.value; state.pricesAt = Date.now(); store.set('prices', {at: state.pricesAt, data: p.value}); }
+  if (f.status === 'fulfilled') { state.fng = f.value; store.set('fng', f.value); }
   if (p.status === 'rejected') throw p.reason;
 }
-// Dane wykresu ceny: 1R z wykresu dziennego, krótsze zakresy pobierane osobno i trzymane 5 minut.
-async function loadRange(force) {
-  const sym = state.coin, days = state.range, key = sym + '|' + days, id = COINS.find((c) => c.sym === sym).id;
-  if (days === 365) return;
-  const c = state.ranges[key];
-  if (!force && c && Date.now() - c.at < 5 * 60 * 1000) return;
-  try { state.ranges[key] = {at: Date.now(), data: await fetchRange(id, days)}; } catch { /* zostają poprzednie dane */ }
-}
+// Dane wykresu ceny: 24h i 7 dni z godzinowego sparkline, 30 dni–1 rok z wykresu dziennego, lata z historii.
 function rangeData() {
-  const sym = state.coin, days = state.range;
-  let data = days === 365
-    ? (state.charts[sym] || state.series[sym].filter((r) => Date.parse(r.date) > Date.now() - 365 * 864e5)).map((r) => ({t: Date.parse(r.date), price: r.price}))
-    : (state.ranges[sym + '|' + days]?.data || []).slice();
-  const live = state.prices?.[COINS.find((c) => c.sym === sym).id]?.usd;
-  if (live && data.length) data.push({t: Date.now(), price: live});
+  const sym = state.coin, days = state.range, id = COINS.find((c) => c.sym === sym).id, from = Date.now() - days * DAYMS;
+  const live = state.prices?.[id];
+  let data;
+  if (days <= 7 && live?.spark?.length) data = live.spark.filter((r) => r.t >= from);
+  else if (days <= 365 && state.charts[sym]?.length) data = state.charts[sym].map((r) => ({t: Date.parse(r.date), price: r.price})).filter((r) => r.t >= from);
+  else data = (state.series[sym] || []).map((r) => ({t: Date.parse(r.date), price: r.price})).filter((r) => r.t >= from);
+  if (live?.usd && data.length) data.push({t: Math.max(Date.now(), data[data.length - 1].t + 1), price: live.usd});
   return data;
 }
-async function showRange() {
+function showRange() {
   document.querySelectorAll('.rbtn').forEach((b) => b.classList.toggle('on', +b.dataset.days === state.range));
-  drawPrice();
-  await loadRange();
   drawPrice();
 }
 
@@ -169,26 +168,29 @@ function drawGauge(s, sym) {
 
 function drawPrice() {
   const el = $('ch-price'), data = rangeData(), sym = state.coin, days = state.range;
-  if (data.length < 2) { el.replaceChildren(); $('r-chg').textContent = 'Wczytywanie…'; $('r-hl').textContent = ''; return; }
+  if (data.length < 2) { el.replaceChildren(); $('r-chg').textContent = state.pricesAt ? 'Brak danych dla tego zakresu' : 'Wczytywanie…'; $('r-chg').style.color = ''; $('r-hl').textContent = ''; return; }
   const first = data[0].price, last = data[data.length - 1].price, chg = (last / first - 1) * 100;
   const hi = data.reduce((a, r) => (r.price > a.price ? r : a)), lo = data.reduce((a, r) => (r.price < a.price ? r : a));
   const col = chg >= 0 ? 'var(--green)' : 'var(--red)', rgb = chg >= 0 ? '61,245,164' : '255,93,108';
-  const lbl = {1: '24h', 7: '7 dni', 30: '30 dni', 90: '90 dni', 365: 'rok'}[days];
+  const lbl = {1: '24h', 7: '7 dni', 30: '30 dni', 90: '90 dni', 365: 'rok', 1826: '5 lat', 3652: '10 lat'}[days];
   $('r-chg').textContent = `${pct(chg)} w ${lbl}`; $('r-chg').style.color = col;
   $('r-hl').textContent = `min ${fmtUsd(lo.price)} · max ${fmtUsd(hi.price)}`;
   const W = Math.max(300, el.clientWidth), H = 260, m = {t: 14, r: 12, b: 26, l: 64};
   const svg = svgIn(el, W, H, `Cena ${sym} w ostatnim okresie: ${lbl}, zmiana ${pct(chg)}`);
   const x = d3.scaleTime().domain(d3.extent(data, (r) => r.t)).range([m.l, W - m.r]);
   const pad = (hi.price - lo.price) * 0.12 || hi.price * 0.01;
-  const y = d3.scaleLinear().domain([lo.price - pad, hi.price + pad]).range([H - m.b, m.t]);
+  const logY = days > 365;
+  const y = logY ? d3.scaleLog().domain([lo.price * 0.85, hi.price * 1.15]).range([H - m.b, m.t]) : d3.scaleLinear().domain([lo.price - pad, hi.price + pad]).range([H - m.b, m.t]);
   const gid = 'pg' + Math.random().toString(36).slice(2, 8);
   const gr = svg.append('defs').append('linearGradient').attr('id', gid).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
   gr.append('stop').attr('offset', '0%').attr('stop-color', `rgba(${rgb},.32)`);
   gr.append('stop').attr('offset', '100%').attr('stop-color', `rgba(${rgb},0)`);
-  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(fmtUsd).tickSize(-(W - m.l - m.r))).call((g) => g.select('.domain').remove());
-  const tf = days === 1 ? d3.timeFormat('%H:%M') : days <= 30 ? d3.timeFormat('%d.%m') : d3.timeFormat('%m.%Y');
+  const yt = logY ? [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1e3, 2e3, 5e3, 1e4, 2e4, 5e4, 1e5, 2e5].filter((v) => v >= y.domain()[0] && v <= y.domain()[1]) : y.ticks(5);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues(yt).tickFormat(fmtUsd).tickSize(-(W - m.l - m.r))).call((g) => g.select('.domain').remove());
+  const tf = days === 1 ? d3.timeFormat('%H:%M') : days <= 30 ? d3.timeFormat('%d.%m') : days <= 365 ? d3.timeFormat('%m.%Y') : d3.timeFormat('%Y');
   svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(W < 500 ? 4 : 7).tickFormat(tf).tickSizeOuter(0));
   svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(first)).attr('y2', y(first)).style('stroke', 'var(--dim)').attr('stroke-dasharray', '3 5').style('opacity', 0.6);
+  if (logY) gr.select('stop').attr('stop-color', `rgba(${rgb},.22)`);
   svg.append('path').datum(data).attr('fill', `url(#${gid})`).attr('d', d3.area().x((r) => x(r.t)).y0(H - m.b).y1((r) => y(r.price)));
   svg.append('path').datum(data).attr('fill', 'none').style('stroke', col).attr('stroke-width', 1.8).style('filter', `drop-shadow(0 0 4px rgba(${rgb},.8))`).attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r.price)));
   const L = data[data.length - 1];
@@ -197,7 +199,7 @@ function drawPrice() {
     const xx = x(r.t), anchor = xx > W - 90 ? 'end' : xx < m.l + 60 ? 'start' : 'middle';
     svg.append('text').attr('x', xx).attr('y', y(r.price) + dy).attr('text-anchor', anchor).style('fill', 'var(--fg)').text(fmtUsd(r.price));
   });
-  const bis = d3.bisector((r) => r.t).center, ff = days === 1 ? '%d.%m %H:%M' : days <= 90 ? '%d.%m %H:%M' : '%d.%m.%Y';
+  const bis = d3.bisector((r) => r.t).center, ff = days <= 7 ? '%d.%m %H:%M' : '%d.%m.%Y';
   hover(el, svg, W, x, m.t, H - m.b, (t) => { const r = data[bis(data, +t)]; return r && {x: x(r.t), d: r}; },
     (r) => `${d3.timeFormat(ff)(new Date(r.t))} · ${fmtUsd(r.price)} · ${pct((r.price / first - 1) * 100)}`);
 }
@@ -315,20 +317,25 @@ function bind() {
 
 async function refreshPrices() {
   try {
-    await Promise.all([loadLive(), loadRange()]); compute(); render();
+    await loadLive(); compute(); render();
     status('Na żywo · ' + new Date().toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}), 'ok');
   } catch (e) {
-    status('Brak połączenia z CoinGecko, pokazuję ostatnie dane', 'err');
+    const t = state.pricesAt ? ' z ' + new Date(state.pricesAt).toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}) : '';
+    status(`CoinGecko chwilowo nie odpowiada (${e.message.includes('429') ? 'limit zapytań' : 'brak sieci'}), ceny${t}`, 'err');
   }
 }
 
 (async function main() {
   bind();
   try { await loadHistory(); } catch { status('Nie udało się wczytać danych historycznych', 'err'); return; }
+  const cp = store.get('prices', null); if (cp) { state.prices = cp.data; state.pricesAt = cp.at; }
+  state.fng = store.get('fng', null);
+  state.charts = store.get('charts', {data: {}}).data;
   compute(); render();
-  await loadCharts();
   await refreshPrices();
-  setInterval(refreshPrices, 60 * 1000);
-  setInterval(async () => { await loadCharts(); compute(); render(); }, 30 * 60 * 1000);
+  await loadCharts(); compute(); render();
+  setInterval(refreshPrices, 90 * 1000);
+  setInterval(async () => { await loadCharts(); compute(); render(); }, 15 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - (state.pricesAt || 0) > 60e3) refreshPrices(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
