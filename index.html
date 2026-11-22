@@ -38,6 +38,21 @@
   </section>
   <p class="note" id="alt-note" hidden></p>
 
+  <section class="sec" id="live">
+    <h2>Cena na żywo</h2>
+    <div class="pricebar">
+      <div class="range" role="group" aria-label="Zakres wykresu">
+        <button type="button" class="rbtn" data-days="1">24H</button>
+        <button type="button" class="rbtn" data-days="7">7D</button>
+        <button type="button" class="rbtn" data-days="30">30D</button>
+        <button type="button" class="rbtn" data-days="90">90D</button>
+        <button type="button" class="rbtn" data-days="365">1R</button>
+      </div>
+      <div class="rstat"><span id="r-chg">—</span><span class="muted" id="r-hl">—</span></div>
+    </div>
+    <div class="chart price" id="ch-price"></div>
+  </section>
+
   <section class="sec" id="plan">
     <h2>Plan zakupów na ten tydzień</h2>
     <p class="muted">Kwota = budżet × udział × mnożnik danej monety, łącznie najwyżej 2× budżetu. Ustawienia zapisują się na tym urządzeniu.</p>

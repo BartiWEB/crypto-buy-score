@@ -26,3 +26,9 @@ export async function fetchFng() {
   const d = j.data || [];
   return {value: +d[0]?.value, label: d[0]?.value_classification, week: +d[7]?.value, month: +d[30]?.value};
 }
+
+// Wykres ceny w wybranym zakresie (1 dzień: co 5 min, 7–90 dni: co godzinę): [{t: ms, price}]
+export async function fetchRange(id, days) {
+  const j = await getJson(`${CG}/coins/${id}/market_chart?vs_currency=usd&days=${days}`);
+  return (j.prices || []).map(([t, price]) => ({t, price}));
+}

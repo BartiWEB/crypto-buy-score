@@ -1,5 +1,5 @@
 import {COINS, mergeSeries, liveScore, plan, cycles, windowChanges, monthly, fmtUsd, bucket} from './score.js';
-import {fetchPrices, fetchChart, fetchFng} from './api.js';
+import {fetchPrices, fetchChart, fetchFng, fetchRange} from './api.js';
 
 const COLOR = {red: 'var(--red)', slate: 'var(--slate)', amber: 'var(--amber)', green: 'var(--green)'};
 const CYCLE_COLOR = {'2012': 'var(--violet)', '2016': 'var(--amber)', '2020': 'var(--green)', '2024': 'var(--cyan)'};
@@ -14,7 +14,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* brak zapisu */ } }
 };
 
-const state = {coin: store.get('coin', 'BTC'), hist: null, charts: {}, prices: null, fng: null, series: {}, scores: {}};
+const state = {coin: store.get('coin', 'BTC'), range: store.get('range', 7), hist: null, charts: {}, prices: null, fng: null, series: {}, scores: {}, ranges: {}};
 
 function status(text, kind) { $('status').textContent = text; $('status-dot').className = 'dot ' + (kind || ''); }
 
@@ -33,6 +33,30 @@ async function loadLive() {
   if (f.status === 'fulfilled') state.fng = f.value;
   if (p.status === 'rejected') throw p.reason;
 }
+// Dane wykresu ceny: 1R z wykresu dziennego, krótsze zakresy pobierane osobno i trzymane 5 minut.
+async function loadRange(force) {
+  const sym = state.coin, days = state.range, key = sym + '|' + days, id = COINS.find((c) => c.sym === sym).id;
+  if (days === 365) return;
+  const c = state.ranges[key];
+  if (!force && c && Date.now() - c.at < 5 * 60 * 1000) return;
+  try { state.ranges[key] = {at: Date.now(), data: await fetchRange(id, days)}; } catch { /* zostają poprzednie dane */ }
+}
+function rangeData() {
+  const sym = state.coin, days = state.range;
+  let data = days === 365
+    ? (state.charts[sym] || state.series[sym].filter((r) => Date.parse(r.date) > Date.now() - 365 * 864e5)).map((r) => ({t: Date.parse(r.date), price: r.price}))
+    : (state.ranges[sym + '|' + days]?.data || []).slice();
+  const live = state.prices?.[COINS.find((c) => c.sym === sym).id]?.usd;
+  if (live && data.length) data.push({t: Date.now(), price: live});
+  return data;
+}
+async function showRange() {
+  document.querySelectorAll('.rbtn').forEach((b) => b.classList.toggle('on', +b.dataset.days === state.range));
+  drawPrice();
+  await loadRange();
+  drawPrice();
+}
+
 function compute() {
   for (const c of COINS) {
     const h = state.hist[c.sym];
@@ -62,6 +86,8 @@ function render() {
   const note = $('alt-note');
   note.hidden = sym === 'BTC';
   note.textContent = sym === 'BTC' ? '' : `${coin.name} nie ma własnego halvingu, więc faza cyklu liczona jest według BTC. Dla altcoinów model jest słabszy: w długim trendzie spadkowym moneta potrafi długo wyglądać „tanio” i tanieć dalej. Realized price pochodzi z 05.2026, więc po dużych spadkach wynik bywa zawyżony.`;
+  document.querySelectorAll('.rbtn').forEach((b) => b.classList.toggle('on', +b.dataset.days === state.range));
+  drawPrice();
   renderPlan();
   rows('parts-rows', s.parts.map((p) => [p.label, p.value, ['num', num(p.pts, 1)], ['num', p.max], ['src', p.note]]));
   const cyc = cycles(state.series[sym]);
@@ -139,6 +165,41 @@ function drawGauge(s, sym) {
   t(18, '46px', color, Math.round(score), {'font-weight': 600, filter: `drop-shadow(0 0 10px ${color})`});
   t(40, '11px', 'var(--fg)', `/100 · DCA ${xmult(s.mult)}`, {'letter-spacing': '.15em'});
   [0, 25, 50, 75, 100].forEach((v) => g.append('text').attr('x', 126 * Math.sin(ang(v))).attr('y', -126 * Math.cos(ang(v)) + 4).attr('text-anchor', 'middle').style('fill', 'var(--dim)').style('font-size', '9px').style('font-family', 'var(--mono)').text(v));
+}
+
+function drawPrice() {
+  const el = $('ch-price'), data = rangeData(), sym = state.coin, days = state.range;
+  if (data.length < 2) { el.replaceChildren(); $('r-chg').textContent = 'Wczytywanie…'; $('r-hl').textContent = ''; return; }
+  const first = data[0].price, last = data[data.length - 1].price, chg = (last / first - 1) * 100;
+  const hi = data.reduce((a, r) => (r.price > a.price ? r : a)), lo = data.reduce((a, r) => (r.price < a.price ? r : a));
+  const col = chg >= 0 ? 'var(--green)' : 'var(--red)', rgb = chg >= 0 ? '61,245,164' : '255,93,108';
+  const lbl = {1: '24h', 7: '7 dni', 30: '30 dni', 90: '90 dni', 365: 'rok'}[days];
+  $('r-chg').textContent = `${pct(chg)} w ${lbl}`; $('r-chg').style.color = col;
+  $('r-hl').textContent = `min ${fmtUsd(lo.price)} · max ${fmtUsd(hi.price)}`;
+  const W = Math.max(300, el.clientWidth), H = 260, m = {t: 14, r: 12, b: 26, l: 64};
+  const svg = svgIn(el, W, H, `Cena ${sym} w ostatnim okresie: ${lbl}, zmiana ${pct(chg)}`);
+  const x = d3.scaleTime().domain(d3.extent(data, (r) => r.t)).range([m.l, W - m.r]);
+  const pad = (hi.price - lo.price) * 0.12 || hi.price * 0.01;
+  const y = d3.scaleLinear().domain([lo.price - pad, hi.price + pad]).range([H - m.b, m.t]);
+  const gid = 'pg' + Math.random().toString(36).slice(2, 8);
+  const gr = svg.append('defs').append('linearGradient').attr('id', gid).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+  gr.append('stop').attr('offset', '0%').attr('stop-color', `rgba(${rgb},.32)`);
+  gr.append('stop').attr('offset', '100%').attr('stop-color', `rgba(${rgb},0)`);
+  svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(fmtUsd).tickSize(-(W - m.l - m.r))).call((g) => g.select('.domain').remove());
+  const tf = days === 1 ? d3.timeFormat('%H:%M') : days <= 30 ? d3.timeFormat('%d.%m') : d3.timeFormat('%m.%Y');
+  svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(W < 500 ? 4 : 7).tickFormat(tf).tickSizeOuter(0));
+  svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(first)).attr('y2', y(first)).style('stroke', 'var(--dim)').attr('stroke-dasharray', '3 5').style('opacity', 0.6);
+  svg.append('path').datum(data).attr('fill', `url(#${gid})`).attr('d', d3.area().x((r) => x(r.t)).y0(H - m.b).y1((r) => y(r.price)));
+  svg.append('path').datum(data).attr('fill', 'none').style('stroke', col).attr('stroke-width', 1.8).style('filter', `drop-shadow(0 0 4px rgba(${rgb},.8))`).attr('d', d3.line().x((r) => x(r.t)).y((r) => y(r.price)));
+  const L = data[data.length - 1];
+  svg.append('circle').attr('cx', x(L.t)).attr('cy', y(L.price)).attr('r', 4).style('fill', col).attr('class', 'blink').style('filter', `drop-shadow(0 0 6px rgba(${rgb},1))`);
+  [[hi, -8], [lo, 16]].forEach(([r, dy]) => {
+    const xx = x(r.t), anchor = xx > W - 90 ? 'end' : xx < m.l + 60 ? 'start' : 'middle';
+    svg.append('text').attr('x', xx).attr('y', y(r.price) + dy).attr('text-anchor', anchor).style('fill', 'var(--fg)').text(fmtUsd(r.price));
+  });
+  const bis = d3.bisector((r) => r.t).center, ff = days === 1 ? '%d.%m %H:%M' : days <= 90 ? '%d.%m %H:%M' : '%d.%m.%Y';
+  hover(el, svg, W, x, m.t, H - m.b, (t) => { const r = data[bis(data, +t)]; return r && {x: x(r.t), d: r}; },
+    (r) => `${d3.timeFormat(ff)(new Date(r.t))} · ${fmtUsd(r.price)} · ${pct((r.price / first - 1) * 100)}`);
 }
 
 function drawHistory(series, sym) {
@@ -239,7 +300,8 @@ function drawHeat(rowsM) {
 
 // ---------- start ----------
 function bind() {
-  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { state.coin = t.dataset.coin; store.set('coin', state.coin); render(); }));
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { state.coin = t.dataset.coin; store.set('coin', state.coin); render(); showRange(); }));
+  document.querySelectorAll('.rbtn').forEach((b) => b.addEventListener('click', () => { state.range = +b.dataset.days; store.set('range', state.range); showRange(); }));
   const saved = store.get('plan', null);
   if (saved) for (const [id, v] of Object.entries(saved)) if ($(id)) $(id).value = v;
   document.querySelectorAll('#plan-form input').forEach((i) => i.addEventListener('input', () => {
@@ -253,7 +315,7 @@ function bind() {
 
 async function refreshPrices() {
   try {
-    await loadLive(); compute(); render();
+    await Promise.all([loadLive(), loadRange()]); compute(); render();
     status('Na żywo · ' + new Date().toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}), 'ok');
   } catch (e) {
     status('Brak połączenia z CoinGecko, pokazuję ostatnie dane', 'err');

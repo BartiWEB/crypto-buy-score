@@ -52,6 +52,13 @@ td.src{color:var(--dim);font-family:var(--sans);white-space:normal;min-width:180
 .c-red{background:var(--red)}.c-slate{background:var(--slate)}.c-amber{background:var(--amber)}.c-green{background:var(--green)}
 .chart{position:relative;min-height:320px;width:100%}
 .chart.small{min-height:170px}
+.chart.price{min-height:260px}
+.pricebar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 18px}
+.range{display:flex;gap:6px;flex-wrap:wrap}
+.rbtn{font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;padding:6px 12px;background:transparent;color:var(--dim);border:1px solid var(--line);cursor:pointer}
+.rbtn.on{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(56,217,245,.35) inset}
+.rstat{display:flex;gap:14px;align-items:baseline;font-family:var(--mono);font-variant-numeric:tabular-nums}
+#r-chg{font-size:1.05rem}
 .chart svg{display:block;width:100%;overflow:visible}
 .chart text{fill:var(--dim);font-size:11px;font-family:var(--mono)}
 .chart .domain{stroke:var(--line)}
@@ -66,4 +73,5 @@ td.src{color:var(--dim);font-family:var(--sans);white-space:normal;min-width:180
   @keyframes spin{to{transform:rotate(360deg)}}
   .dot.ok{animation:pulse 2.4s ease-in-out infinite}
   @keyframes pulse{50%{opacity:.35}}
+  .blink{animation:pulse 1.6s ease-in-out infinite}
 }
