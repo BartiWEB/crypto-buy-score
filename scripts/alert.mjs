@@ -40,7 +40,7 @@ if (now.fng10 && !state.fng10) msgs.push(`⚠ Fear & Greed spadł do ${fng.value
 if (now.btc30 && !state.btc30) msgs.push(`⚠ BTC: wynik ${Math.round(scores.BTC.score)} poniżej 30, rynek drogi. Mnożnik 0,5×, rozważ realizację części zysków.`);
 
 const hourUtc = new Date().getUTCHours();
-if (force || (hourUtc === reportHour && state.lastReport !== today)) {
+if (force || (hourUtc >= reportHour && state.lastReport !== today)) {
   msgs.push(['☀ Plan dnia, Crypto Buy Score', ...lines, fng ? `Fear & Greed: ${fng.value} (${fng.label})` : null, `Kwoty tygodniowe: ${planLine}`, 'To analiza, nie porada inwestycyjna.'].filter(Boolean).join('\n'));
   state.lastReport = today;
 }
