@@ -18,7 +18,7 @@
   <header class="head">
     <div class="sys"><span class="dot" id="status-dot"></span><span id="status">Łączenie z rynkiem…</span></div>
     <h1>Crypto Buy Score</h1>
-    <p class="muted">Wynik 0–100: im wyżej, tym taniej moneta względem własnej historii. Ceny odświeżają się co 1,5 minuty. To narzędzie analityczne, nie porada inwestycyjna.</p>
+    <p class="muted">Wynik 0–100: im wyżej, tym taniej i bardziej strachliwie na rynku, czyli lepszy moment na zakup. Poniżej 20 rynek jest w euforii i to pora na realizację części zysków. Ceny w $ i zł (kurs średni NBP), odświeżają się co 1,5 minuty. To narzędzie analityczne, nie porada inwestycyjna.</p>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Moneta">
@@ -32,11 +32,13 @@
     <div class="gauge" id="gauge" aria-live="polite"></div>
     <div class="tiles">
       <div class="tile"><span class="lbl">Mnożnik DCA</span><span class="big warn" id="t-mult">—</span><span class="muted">względem stałej kwoty</span></div>
-      <div class="tile"><span class="lbl" id="t-price-lbl">Cena</span><span class="big" id="t-price">—</span><span class="muted"><span id="t-chg">—</span> w 24h</span></div>
+      <div class="tile"><span class="lbl" id="t-price-lbl">Cena</span><span class="big" id="t-price">—</span><span class="mid" id="t-price-pln"></span><span class="muted"><span id="t-chg">—</span> w 24h</span></div>
       <div class="tile"><span class="lbl">Fear &amp; Greed (rynek)</span><span class="big" id="t-fng">—</span><span class="muted" id="t-fng-sub">—</span></div>
-      <div class="tile"><span class="lbl">Backtest od 2018</span><span class="big" id="t-bt">—</span><span class="muted">więcej monet za ten sam budżet</span></div>
+      <div class="tile"><span class="lbl" id="t-bt-lbl">Backtest</span><span class="big" id="t-bt">—</span><span class="muted">niższa średnia cena zakupu niż przy zwykłym DCA</span></div>
     </div>
   </section>
+  <p class="explain" id="explain" aria-live="polite"></p>
+  <p class="note sell" id="tp-note" hidden></p>
   <p class="note" id="alt-note" hidden></p>
 
   <section class="sec" id="live">
@@ -58,26 +60,39 @@
 
   <section class="sec" id="plan">
     <h2>Plan zakupów na ten tydzień</h2>
-    <p class="muted">Kwota = budżet × udział × mnożnik danego aktywa, łącznie najwyżej 2× budżetu. Ustawienia zapisują się na tym urządzeniu.</p>
+    <p class="muted">Kwota = budżet (zł) × udział × mnożnik danego aktywa, łącznie najwyżej 2× budżetu. Gdy prowadzisz dziennik poniżej, aktywo nadważone o ponad 10 pkt proc. względem udziału docelowego jest w danym tygodniu pomijane (rebalancing zakupami, bez sprzedaży). Ustawienia zapisują się na tym urządzeniu.</p>
     <form class="form" id="plan-form">
-      <label class="field">Budżet tygodniowy<input id="p-budget" type="number" min="0" step="10" value="200" inputmode="decimal"></label>
+      <label class="field">Budżet tygodniowy (zł)<input id="p-budget" type="number" min="0" step="10" value="200" inputmode="decimal"></label>
       <label class="field">BTC %<input id="p-BTC" type="number" min="0" max="100" step="5" value="70"></label>
       <label class="field">ETH %<input id="p-ETH" type="number" min="0" max="100" step="5" value="25"></label>
       <label class="field">ADA %<input id="p-ADA" type="number" min="0" max="100" step="5" value="5"></label>
       <label class="field">Złoto %<input id="p-GOLD" type="number" min="0" max="100" step="5" value="0"></label>
     </form>
-    <div class="tw"><table><thead><tr><th>Aktywo</th><th class="num">Udział</th><th class="num">Wynik</th><th class="num">Mnożnik</th><th class="num">Kwota</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Aktywo</th><th class="num">Cel</th><th class="num">Teraz</th><th class="num">Wynik</th><th class="num">Mnożnik</th><th class="num">Kwota</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
     <p>Razem w tym tygodniu: <span class="total" id="plan-total">—</span></p>
+    <p class="note" id="plan-note" hidden></p>
+  </section>
+
+  <section class="sec" id="zones">
+    <h2>Co oznacza wynik</h2>
+    <div class="tw"><table><thead><tr><th>Wynik</th><th>Strefa</th><th>Co robić</th></tr></thead><tbody>
+      <tr><td>77–100</td><td style="color:var(--green)">Silna okazja</td><td class="src">Kupuj więcej niż zwykle (2–3× kwoty). Historycznie takie wyniki były w pobliżu den bessy.</td></tr>
+      <tr><td>60–77</td><td style="color:var(--amber)">Okazja</td><td class="src">Kupuj trochę więcej niż zwykle (1,5–2×).</td></tr>
+      <tr><td>40–60</td><td style="color:var(--slate)">Neutralnie</td><td class="src">Kupuj zwykłą kwotę.</td></tr>
+      <tr><td>20–40</td><td style="color:var(--red)">Drogo</td><td class="src">Kupuj mniej (0,5–1×), nie goń ceny.</td></tr>
+      <tr><td>0–20</td><td style="color:var(--violet)">Euforia</td><td class="src">Nie kupuj. Realizuj zyski drabinką: poniżej 20 sprzedaj 10% pozycji, poniżej 12 kolejne 15%, poniżej 6 kolejne 25%. Każdy szczebel raz na cykl. Gotówkę odkładaj i wracaj nią na rynek, gdy wynik znów przekroczy 60.</td></tr>
+    </tbody></table></div>
   </section>
 
   <section class="sec">
     <h2>Z czego składa się wynik</h2>
     <div class="tw"><table><thead><tr><th>Wskaźnik</th><th>Wartość</th><th class="num">Punkty</th><th class="num">Maks.</th><th>Uwagi</th></tr></thead><tbody id="parts-rows"></tbody></table></div>
+    <p class="muted" id="parts-note"></p>
   </section>
 
   <section class="sec">
     <h2>Cena pokolorowana wynikiem</h2>
-    <div class="legend"><span><i class="c-red"></i>&lt;30 (0,5×)</span><span><i class="c-slate"></i>30–50 (1×)</span><span><i class="c-amber"></i>50–70 (1,5×)</span><span><i class="c-green"></i>70+ (2–3×)</span></div>
+    <div class="legend"><span><i class="c-violet"></i>&lt;20 euforia (sprzedaż)</span><span><i class="c-red"></i>20–40 drogo</span><span><i class="c-slate"></i>40–60 neutralnie</span><span><i class="c-amber"></i>60–77 okazja</span><span><i class="c-green"></i>77+ silna okazja</span></div>
     <div class="chart" id="ch-history"></div>
   </section>
 
@@ -100,7 +115,35 @@
     <p class="muted" id="bt-note">100 $ tygodniowo, wycena po cenie z 23.05.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.</p>
   </section>
 
-  <footer class="muted foot">Dane: CoinGecko (ceny), alternative.me (Fear &amp; Greed), Coin Metrics (historia on-chain do 05.2026), datasets/gold-prices (złoto, średnie miesięczne), PAX Gold na CoinGecko (cena złota na żywo). Realized price i MVRV po tej dacie są przybliżone.</footer>
+  <section class="sec" id="portfolio">
+    <h2>Portfel i dziennik transakcji</h2>
+    <p class="muted">Wpisuj każdy zakup i sprzedaż za pieniądze. Dane zostają tylko na tym urządzeniu, więc co jakiś czas pobierz kopię CSV. Dla transakcji w $ aplikacja pobiera kurs NBP z ostatniego dnia roboczego przed transakcją, tak jak wymaga PIT-38.</p>
+    <form class="form" id="tx-form">
+      <label class="field">Data<input id="tx-date" type="date" required></label>
+      <label class="field">Aktywo<select id="tx-asset"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ADA">ADA</option><option value="PAXG">PAXG (złoto w tokenie)</option><option value="GOLDP">Złoto fizyczne / ETF</option></select></label>
+      <label class="field">Typ<select id="tx-type"><option value="buy">Kupno</option><option value="sell">Sprzedaż</option></select></label>
+      <label class="field">Ilość<input id="tx-qty" type="text" inputmode="decimal" placeholder="0,0015" required></label>
+      <label class="field">Wartość<input id="tx-value" type="text" inputmode="decimal" placeholder="400" required></label>
+      <label class="field">Opłata<input id="tx-fee" type="text" inputmode="decimal" placeholder="0"></label>
+      <label class="field">Waluta<select id="tx-cur"><option value="PLN">zł</option><option value="USD">$</option></select></label>
+      <button type="submit" class="btn">Dodaj</button>
+    </form>
+    <p class="muted" id="tx-msg" aria-live="polite"></p>
+    <div class="tw"><table><thead><tr><th>Aktywo</th><th class="num">Ilość</th><th class="num">Śr. cena zakupu</th><th class="num">Wartość teraz</th><th class="num">Zysk / strata</th></tr></thead><tbody id="pf-rows"></tbody></table></div>
+    <p>Razem: <span class="total" id="pf-total">—</span></p>
+    <details><summary class="muted">Wszystkie transakcje</summary>
+      <div class="tw"><table><thead><tr><th>Data</th><th>Aktywo</th><th>Typ</th><th class="num">Ilość</th><th class="num">Wartość</th><th class="num">Opłata</th><th>Kurs</th><th></th></tr></thead><tbody id="tx-rows"></tbody></table></div>
+    </details>
+    <div class="form"><button type="button" class="btn" id="tx-export">Pobierz CSV</button><label class="btn">Wczytaj CSV<input id="tx-import" type="file" accept=".csv,text/csv" hidden></label></div>
+  </section>
+
+  <section class="sec" id="pit">
+    <h2>Podatek: PIT-38 za kryptowaluty</h2>
+    <p class="muted">Przychód to sprzedaż kryptowalut za pieniądze (także zapłata kryptowalutą za towar). Koszty to wydatki na zakup i opłaty w danym roku. Nadwyżka kosztów nad przychodem przechodzi na kolejne lata. Wymiana jednej kryptowaluty na inną nie jest zdarzeniem podatkowym, więc jej nie wpisuj. Złoto fizyczne i ETF nie wchodzą do tego zestawienia. Kwoty w zł, podatek 19%. To pomoc w wyliczeniu, nie porada podatkowa: przed złożeniem PIT-38 sprawdź wartości z biurem rachunkowym lub w e-Urzędzie Skarbowym.</p>
+    <div class="tw"><table><thead><tr><th>Rok</th><th class="num">Przychód</th><th class="num">Koszty roku</th><th class="num">Koszty z lat ubiegłych</th><th class="num">Dochód</th><th class="num">Podatek 19%</th><th class="num">Koszty na kolejny rok</th></tr></thead><tbody id="pit-rows"></tbody></table></div>
+  </section>
+
+  <footer class="muted foot">Dane: CoinGecko (ceny), Coin Metrics Community (MVRV, kapitalizacja, górnicy, giełdy), alternative.me (Fear &amp; Greed), DefiLlama (stablecoiny), OKX / Bybit / Binance (funding), NBP (kurs USD/PLN), datasets/gold-prices (złoto, średnie miesięczne), PAX Gold na CoinGecko (cena złota na żywo). Dzisiejsze MVRV to szacunek z wczorajszej realized price. Makro (DXY, M2, napływy do ETF) nie ma darmowego źródła dostępnego z przeglądarki, więc nie wchodzi do wyniku.</footer>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script type="module" src="app.js"></script>
