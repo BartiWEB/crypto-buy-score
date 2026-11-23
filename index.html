@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Crypto Buy Score</title>
-<meta name="description" content="Wynik okazji zakupowej 0–100 i plan DCA dla BTC, ETH i ADA na żywo.">
+<meta name="description" content="Wynik okazji zakupowej 0–100 i plan DCA dla BTC, ETH, ADA i złota na żywo.">
 <meta name="theme-color" content="#050b14">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -25,6 +25,7 @@
     <button type="button" class="tab on" role="tab" aria-selected="true" data-coin="BTC">BTC</button>
     <button type="button" class="tab" role="tab" aria-selected="false" data-coin="ETH">ETH</button>
     <button type="button" class="tab" role="tab" aria-selected="false" data-coin="ADA">ADA</button>
+    <button type="button" class="tab" role="tab" aria-selected="false" data-coin="GOLD">ZŁOTO</button>
   </nav>
 
   <section class="hero">
@@ -57,14 +58,15 @@
 
   <section class="sec" id="plan">
     <h2>Plan zakupów na ten tydzień</h2>
-    <p class="muted">Kwota = budżet × udział × mnożnik danej monety, łącznie najwyżej 2× budżetu. Ustawienia zapisują się na tym urządzeniu.</p>
+    <p class="muted">Kwota = budżet × udział × mnożnik danego aktywa, łącznie najwyżej 2× budżetu. Ustawienia zapisują się na tym urządzeniu.</p>
     <form class="form" id="plan-form">
       <label class="field">Budżet tygodniowy<input id="p-budget" type="number" min="0" step="10" value="200" inputmode="decimal"></label>
       <label class="field">BTC %<input id="p-BTC" type="number" min="0" max="100" step="5" value="70"></label>
       <label class="field">ETH %<input id="p-ETH" type="number" min="0" max="100" step="5" value="25"></label>
       <label class="field">ADA %<input id="p-ADA" type="number" min="0" max="100" step="5" value="5"></label>
+      <label class="field">Złoto %<input id="p-GOLD" type="number" min="0" max="100" step="5" value="0"></label>
     </form>
-    <div class="tw"><table><thead><tr><th>Moneta</th><th class="num">Udział</th><th class="num">Wynik</th><th class="num">Mnożnik</th><th class="num">Kwota</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Aktywo</th><th class="num">Udział</th><th class="num">Wynik</th><th class="num">Mnożnik</th><th class="num">Kwota</th></tr></thead><tbody id="plan-rows"></tbody></table></div>
     <p>Razem w tym tygodniu: <span class="total" id="plan-total">—</span></p>
   </section>
 
@@ -80,12 +82,14 @@
   </section>
 
   <section class="sec">
+    <div class="sec" id="cyc-only">
     <h2>Cykle: obecny na tle poprzednich</h2>
     <form class="form"><label class="field">Punkt odniesienia<select id="anchor"><option value="peak">Szczyt cyklu</option><option value="halving">Dzień halvingu</option></select></label></form>
     <div class="chart" id="ch-cycles"></div>
     <div class="tw"><table><thead><tr><th>Cykl</th><th>Szczyt</th><th class="num">Dni po halvingu</th><th>Dno po szczycie</th><th class="num">Spadek</th><th class="num">Szczyt → dno</th></tr></thead><tbody id="cycle-rows"></tbody></table></div>
     <form class="form"><label class="field">Okno zmiany ceny<select id="win"><option value="30">30 dni</option><option value="90" selected>90 dni</option><option value="180">180 dni</option><option value="365">365 dni</option></select></label></form>
     <div class="chart small" id="ch-window"></div>
+    </div>
     <h2>Sezonowość: zwroty miesięczne w %</h2>
     <div class="chart" id="ch-heat"></div>
   </section>
@@ -93,10 +97,10 @@
   <section class="sec">
     <h2>Backtest: zwykłe DCA vs DCA z mnożnikiem</h2>
     <div class="tw"><table><thead><tr><th>Okres</th><th>Strategia</th><th class="num">Wpłacono</th><th class="num">Ilość</th><th class="num">Śr. cena</th><th class="num">Wartość / wpłaty</th></tr></thead><tbody id="bt-rows"></tbody></table></div>
-    <p class="muted">100 $ tygodniowo, wycena po cenie z 23.05.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.</p>
+    <p class="muted" id="bt-note">100 $ tygodniowo, wycena po cenie z 23.05.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.</p>
   </section>
 
-  <footer class="muted foot">Dane: CoinGecko (ceny), alternative.me (Fear &amp; Greed), Coin Metrics (historia on-chain do 05.2026). Realized price i MVRV po tej dacie są przybliżone.</footer>
+  <footer class="muted foot">Dane: CoinGecko (ceny), alternative.me (Fear &amp; Greed), Coin Metrics (historia on-chain do 05.2026), datasets/gold-prices (złoto, średnie miesięczne), PAX Gold na CoinGecko (cena złota na żywo). Realized price i MVRV po tej dacie są przybliżone.</footer>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script type="module" src="app.js"></script>

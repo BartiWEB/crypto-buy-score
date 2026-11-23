@@ -59,9 +59,9 @@ function showRange() {
 function compute() {
   for (const c of COINS) {
     const h = state.hist[c.sym];
-    const series = mergeSeries(h, state.charts[c.sym]);
-    const live = state.prices?.[c.id];
-    const price = live?.usd ?? series[series.length - 1].price;
+    const live = state.prices?.[c.id], chart = state.charts[c.sym] || [];
+    const price = live?.usd ?? chart[chart.length - 1]?.price ?? h.price[h.price.length - 1];
+    const series = mergeSeries(h, live?.usd ? [...chart, {date: today(), price}] : chart); // dzisiejsza cena domyka wykres i cykle
     state.series[c.sym] = series;
     state.scores[c.sym] = {...liveScore(h, series, price, today()), price, chg: live?.usd_24h_change};
   }
@@ -73,7 +73,7 @@ function render() {
   document.querySelectorAll('.tab').forEach((t) => { const on = t.dataset.coin === sym; t.classList.toggle('on', on); t.setAttribute('aria-selected', on); });
   drawGauge(s, sym);
   $('t-mult').textContent = xmult(s.mult);
-  $('t-price-lbl').textContent = 'Cena ' + sym;
+  $('t-price-lbl').textContent = coin.gold ? 'Złoto (uncja)' : 'Cena ' + sym;
   $('t-price').textContent = fmtUsd(s.price);
   $('t-chg').textContent = s.chg == null ? '—' : pct(s.chg);
   $('t-chg').style.color = s.chg == null ? '' : s.chg >= 0 ? 'var(--green)' : 'var(--red)';
@@ -82,20 +82,21 @@ function render() {
   const bt = state.hist[sym].backtest.filter((r) => r.period === 'od 2018');
   const d = bt.find((r) => r.strategy === 'Zwykłe DCA'), m = bt.find((r) => r.strategy !== 'Zwykłe DCA');
   $('t-bt').textContent = d && m ? pct((d.avg_cost / m.avg_cost - 1) * 100) : '—';
-  const note = $('alt-note');
+  const note = $('alt-note'), gold = !!coin.gold;
   note.hidden = sym === 'BTC';
-  note.textContent = sym === 'BTC' ? '' : `${coin.name} nie ma własnego halvingu, więc faza cyklu liczona jest według BTC. Dla altcoinów model jest słabszy: w długim trendzie spadkowym moneta potrafi długo wyglądać „tanio” i tanieć dalej. Realized price pochodzi z 05.2026, więc po dużych spadkach wynik bywa zawyżony.`;
+  note.textContent = sym === 'BTC' ? '' : gold ? 'Złoto nie ma danych on-chain ani halvingu, więc wynik liczony jest inaczej: cena względem średniej 200- i 52-tygodniowej, spadek od szczytu oraz zmiana w 12 miesięcy i 3 lata. Historia to średnie miesięczne od 1975 r., cena na żywo pochodzi z PAX Gold (1 token = 1 uncja). Wysoki wynik oznacza złoto tanie względem własnej historii, nie gwarancję wzrostu.' : `${coin.name} nie ma własnego halvingu, więc faza cyklu liczona jest według BTC. Dla altcoinów model jest słabszy: w długim trendzie spadkowym moneta potrafi długo wyglądać „tanio” i tanieć dalej. Realized price pochodzi z 05.2026, więc po dużych spadkach wynik bywa zawyżony.`;
   document.querySelectorAll('.rbtn').forEach((b) => b.classList.toggle('on', +b.dataset.days === state.range));
   drawPrice();
   renderPlan();
   rows('parts-rows', s.parts.map((p) => [p.label, p.value, ['num', num(p.pts, 1)], ['num', p.max], ['src', p.note]]));
-  const cyc = cycles(state.series[sym]);
+  $('cyc-only').hidden = gold;
+  $('bt-note').textContent = gold ? '100 $ miesięcznie (średnie ceny miesięczne), wycena po cenie z 10.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.' : '100 $ tygodniowo, wycena po cenie z 23.05.2026. Wariant z mnożnikiem wpłaca więcej, dlatego porównuj średnią cenę zakupu.';
+  const cyc = gold ? [] : cycles(state.series[sym]);
   const fd = (x) => x.slice(8, 10) + '.' + x.slice(5, 7) + '.' + x.slice(0, 4);
   rows('cycle-rows', cyc.map((c) => [[null, c.cycle + (c.ongoing ? ' (trwa)' : ''), CYCLE_COLOR[c.cycle]], fd(c.peak.date) + ' · ' + fmtUsd(c.peak.price), ['num', c.peakDay + ' d'], fd(c.bottom.date) + ' · ' + fmtUsd(c.bottom.price), ['num', pct(c.drawdown)], ['num', c.daysToBottom + ' d']]));
   rows('bt-rows', state.hist[sym].backtest.map((r) => [r.period, r.strategy, ['num', fmtUsd(r.invested)], ['num', num(r.units, r.units >= 100 ? 0 : 3)], ['num', fmtUsd(r.avg_cost)], ['num', num(r.multiple, 2) + '×']]));
   drawHistory(state.series[sym], sym);
-  drawCycles(cyc);
-  drawWindow();
+  if (!gold) { drawCycles(cyc); drawWindow(); }
   drawHeat(monthly(state.series[sym]));
 }
 
@@ -112,12 +113,12 @@ function rows(id, data) {
 
 function planInputs() {
   const v = (id, d) => { const n = parseFloat($(id).value); return isFinite(n) && n >= 0 ? n : d; };
-  return {budget: v('p-budget', 0), w: {BTC: v('p-BTC', 0), ETH: v('p-ETH', 0), ADA: v('p-ADA', 0)}};
+  return {budget: v('p-budget', 0), w: {BTC: v('p-BTC', 0), ETH: v('p-ETH', 0), ADA: v('p-ADA', 0), GOLD: v('p-GOLD', 0)}};
 }
 function renderPlan() {
   const {budget, w} = planInputs();
   const p = plan(budget, w, state.scores);
-  rows('plan-rows', p.rows.map((r) => [r.sym, ['num', Math.round(r.share * 100) + '%'], ['num', num(r.score)], ['num', xmult(r.mult)], ['num', num(r.amount)]]));
+  rows('plan-rows', p.rows.map((r) => [r.sym === 'GOLD' ? 'Złoto' : r.sym, ['num', Math.round(r.share * 100) + '%'], ['num', num(r.score)], ['num', xmult(r.mult)], ['num', num(r.amount)]]));
   $('plan-total').textContent = `${num(p.total)} (${num(budget ? p.total / budget : 0, 1)}× budżetu)`;
 }
 
@@ -272,7 +273,8 @@ function drawWindow() {
 
 function drawHeat(rowsM) {
   const el = $('ch-heat');
-  const years = [...new Set(rowsM.map((r) => r.year))].sort();
+  const years = [...new Set(rowsM.map((r) => r.year))].sort().slice(-16); // ostatnie 16 lat
+  rowsM = rowsM.filter((r) => r.year >= years[0]);
   const M = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
   const W = Math.max(300, el.clientWidth), m = {t: 22, r: 4, b: 30, l: 40}, cw = (W - m.l - m.r) / 12, ch = Math.min(26, Math.max(18, cw * 0.6));
   const H = m.t + m.b + (years.length + 1) * ch + 4;

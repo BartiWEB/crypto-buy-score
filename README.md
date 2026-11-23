@@ -1,6 +1,6 @@
 # Crypto Buy Score (PWA + Telegram)
 
-Wynik okazji zakupowej 0–100 i tygodniowy plan DCA dla BTC, ETH i ADA. Działa w przeglądarce na darmowych, publicznych API (CoinGecko, alternative.me), bez kluczy i bez zużywania kredytów Claude. Narzędzie analityczne, nie porada inwestycyjna.
+Wynik okazji zakupowej 0–100 i tygodniowy plan DCA dla BTC, ETH, ADA i złota. Działa w przeglądarce na darmowych, publicznych API (CoinGecko, alternative.me), bez kluczy i bez zużywania kredytów Claude. Narzędzie analityczne, nie porada inwestycyjna.
 
 ## 1. Wgranie na GitHub
 
@@ -27,7 +27,7 @@ Ceny odświeżają się co minutę, wykresy co 30 minut. Budżet i podział zapi
 3. Otwórz w przeglądarce `https://api.telegram.org/bot<TOKEN>/getUpdates` i odczytaj `"chat":{"id": ...}`. To Twój chat id.
 4. W repo: **Settings → Secrets and variables → Actions**:
    - zakładka **Secrets**: `TELEGRAM_TOKEN` (token) i `TELEGRAM_CHAT_ID` (chat id),
-   - zakładka **Variables** (opcjonalnie): `BUDGET` (np. `200`), `WEIGHTS` (BTC,ETH,ADA w %, np. `70,25,5`), `REPORT_HOUR_UTC` (domyślnie `7`, czyli 8:00 zimą w Polsce).
+   - zakładka **Variables** (opcjonalnie): `BUDGET` (np. `200`), `WEIGHTS` (BTC,ETH,ADA,złoto w %, np. `70,25,5,0`), `REPORT_HOUR_UTC` (domyślnie `7`, czyli 8:00 zimą w Polsce).
 5. **Actions → Alerts → Run workflow**, zaznacz `force_report`, żeby od razu dostać próbny raport.
 
 Workflow uruchamia się co godzinę (`.github/workflows/alerts.yml`). Wysyła:

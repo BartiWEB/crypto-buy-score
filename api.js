@@ -14,7 +14,7 @@ export async function fetchPrices(ids) {
 
 // Ostatnie 365 dni, punkt dziennie: [{date: 'YYYY-MM-DD', price}]
 export async function fetchChart(id) {
-  const j = await getJson(`${CG}/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`);
+  const j = await getJson(`${CG}/coins/${id}/market_chart?vs_currency=usd&days=365`);
   const byDay = new Map();
   for (const [t, p] of j.prices || []) byDay.set(new Date(t).toISOString().slice(0, 10), p);
   return [...byDay.entries()].map(([date, price]) => ({date, price}));

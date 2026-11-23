@@ -4,7 +4,8 @@
 export const COINS = [
   {sym: 'BTC', id: 'bitcoin', name: 'Bitcoin'},
   {sym: 'ETH', id: 'ethereum', name: 'Ethereum'},
-  {sym: 'ADA', id: 'cardano', name: 'Cardano'}
+  {sym: 'ADA', id: 'cardano', name: 'Cardano'},
+  {sym: 'GOLD', id: 'pax-gold', name: 'Złoto', gold: true} // cena z PAX Gold (1 token = 1 uncja)
 ];
 export const HALVINGS = ['2012-11-28', '2016-07-09', '2020-05-11', '2024-04-20', '2028-04-15'];
 const DAY = 86400000;
@@ -17,14 +18,14 @@ export const bucket = (s) => (s < 30 ? 'red' : s < 50 ? 'slate' : s < 70 ? 'ambe
 export function mergeSeries(hist, live) {
   const rows = hist.date.map((d, i) => ({date: d, price: hist.price[i], score: hist.score[i], live: false}));
   const last = hist.date[hist.date.length - 1];
-  let ath = Math.max(hist.cal.ath, ...hist.price);
+  let ath = Math.max(hist.cal.ath || 0, ...hist.price);
   for (const p of live || []) {
     if (p.date <= last) continue;
-    const prev = rows[rows.length - 1];
-    if (prev.live && Date.parse(p.date) - Date.parse(prev.date) < 3 * DAY) continue; // ten sam krok co historia
+    const prev = rows[rows.length - 1], isLast = p === live[live.length - 1];
+    if (!isLast && prev.live && Date.parse(p.date) - Date.parse(prev.date) < 3 * DAY) continue; // ten sam krok co historia; ostatni punkt zawsze
+    if (prev.live && prev.date === p.date) rows.pop();
     ath = Math.max(ath, p.price);
-    const ma = ma200w(rows, p.date, p.price);
-    const s = total(parts(p.price, ma, hist.cal.realized, ath, p.date, hist.cal.k));
+    const s = hist.gold ? total(goldParts(rows, p.price, p.date)) : total(parts(p.price, ma200w(rows, p.date, p.price), hist.cal.realized, ath, p.date, hist.cal.k));
     rows.push({date: p.date, price: p.price, score: s, live: true});
   }
   return rows;
@@ -52,9 +53,26 @@ export function parts(price, ma, rp, ath, iso, k) {
     {key: 'dd', label: 'Spadek od ATH', value: Math.round(dd * 100) + '%', pts: lin(dd, 0.1, 0.75) * 11, max: 11, note: 'ATH ≈ ' + fmtUsd(ath)}
   ].map((p) => ({...p, pts: Math.round(p.pts * 10) / 10}));
 }
+// Złoto: bez wskaźników on-chain. Wycena względem własnych średnich, spadek od szczytu i rozpęd 1 i 3 lat.
+export function goldParts(rows, price, iso) {
+  const t = Date.parse(iso), past = rows.filter((r) => Date.parse(r.date) < t);
+  const win = (days) => { const w = past.filter((r) => t - Date.parse(r.date) <= days * DAY).map((r) => r.price); w.push(price); return w.reduce((a, b) => a + b, 0) / w.length; };
+  const at = (days) => { let b = null; for (const r of past) if (Date.parse(r.date) <= t - days * DAY) b = r.price; return b || past[0].price; };
+  const ma = win(1400), ma52 = win(365), ath = Math.max(price, ...past.map((r) => r.price));
+  const c1 = price / at(365) - 1, c3 = price / at(1095) - 1, dd = 1 - price / ath;
+  return [
+    {key: 'ma', label: 'Cena / średnia 200 tyg.', value: (price / ma).toFixed(2) + '×', pts: lin(price / ma, 1.5, 0.9) * 25, max: 25, note: 'średnia ≈ ' + fmtUsd(ma)},
+    {key: 'dd', label: 'Spadek od ATH', value: Math.round(dd * 100) + '%', pts: lin(dd, 0.03, 0.4) * 25, max: 25, note: 'ATH ≈ ' + fmtUsd(ath) + ' (średnie miesięczne)'},
+    {key: 'c1', label: 'Zmiana 12 mies.', value: (c1 >= 0 ? '+' : '') + Math.round(c1 * 100) + '%', pts: lin(c1, 0.35, -0.15) * 20, max: 20, note: 'im mocniejszy wzrost, tym drożej'},
+    {key: 'ma52', label: 'Cena / średnia 52 tyg.', value: (price / ma52).toFixed(2) + '×', pts: lin(price / ma52, 1.2, 0.92) * 15, max: 15, note: 'średnia ≈ ' + fmtUsd(ma52)},
+    {key: 'c3', label: 'Zmiana 3 lata', value: (c3 >= 0 ? '+' : '') + Math.round(c3 * 100) + '%', pts: lin(c3, 0.8, -0.2) * 15, max: 15, note: 'przegrzanie w długim terminie'}
+  ].map((p) => ({...p, pts: Math.round(p.pts * 10) / 10}));
+}
+
 export const total = (ps) => Math.round(ps.reduce((a, p) => a + p.pts, 0) * 10) / 10;
 
 export function liveScore(hist, series, price, iso) {
+  if (hist.gold) { const ps = goldParts(series, price, iso), s = total(ps); return {parts: ps, score: s, mult: mult(s)}; }
   const ath = Math.max(price, hist.cal.ath, ...series.map((r) => r.price));
   const ps = parts(price, ma200w(series, iso, price), hist.cal.realized, ath, iso, hist.cal.k);
   const s = total(ps);
