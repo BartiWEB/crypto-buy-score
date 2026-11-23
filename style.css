@@ -103,6 +103,11 @@ details summary{cursor:pointer;padding:6px 0}
   .tw td.grp{justify-content:flex-start;font-family:var(--mono)}
   .tw td:first-child{justify-content:flex-start;text-align:left;font-weight:600;color:var(--cyan);font-size:.9rem}
   .tw td:first-child::before{content:none}
+  .tw tr:has(td.grp){display:flex;align-items:baseline;margin-top:14px;background:rgba(56,217,245,.08)}
+  .tw tr:has(td.grp) td{width:auto;padding:6px 4px 6px 12px}
+  .tw tr:has(td.grp) td:first-child{flex:1}
+  .tw tr:has(td.grp) td.grp.num+td.grp.num::before{content:"/";margin-right:4px;font-size:inherit;letter-spacing:0;color:var(--dim);max-width:none}
+  .tw tr:has(td.grp) td:last-child{padding-right:12px}
   .tw td.num{text-align:right}
   .tabs{gap:6px}
   .tab{padding:9px 12px;letter-spacing:.12em;flex:1;text-align:center}
