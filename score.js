@@ -115,15 +115,16 @@ export function scoreSeries(rows, ctx = {}) {
   const out = rows.map((r, i) => {
     const t = Date.parse(r.date);
     // MVRV Z-score: (kapitalizacja − kapitalizacja zrealizowana) / odchylenie std kapitalizacji
-    n++; s1 += r.mcap; s2 += r.mcap * r.mcap;
+    const keep = !r.thin; // dni pośrednie są oceniane, ale nie zmieniają historii, z którą porównujemy
+    if (keep) { n++; s1 += r.mcap; s2 += r.mcap * r.mcap; }
     const sd = Math.sqrt(Math.max(0, s2 / n - (s1 / n) ** 2));
     const z = sd > 0 ? (r.mcap - r.mcap / r.mvrv) / sd : 0, nupl = 1 - 1 / r.mvrv;
-    for (const k of ['ma1400', 'ma200', 'ma111', 'ma350']) R[k].add(t, r.price);
+    if (keep) for (const k of ['ma1400', 'ma200', 'ma111', 'ma350']) R[k].add(t, r.price);
     const maR = r.price / R.ma1400.mean, mayer = r.price / R.ma200.mean, pi = R.ma111.mean / (2 * R.ma350.mean);
     let rel = null;
-    if (!isBtc && btcAt) { const b = btcAt(t); if (b) { R.rel.add(t, r.price / b); rel = (r.price / b) / R.rel.mean; } }
+    if (!isBtc && btcAt) { const b = btcAt(t); if (b) { if (keep) R.rel.add(t, r.price / b); rel = R.rel.n ? (r.price / b) / R.rel.mean : null; } }
     const st = stAt ? stAt(t) : null, ssr = st ? r.mcap / st : null;
-    R.iss.add(t, r.iss); R.hr30.add(t, r.hr); R.hr60.add(t, r.hr); R.exs.add(t, r.exs);
+    if (keep) { R.iss.add(t, r.iss); R.hr30.add(t, r.hr); R.hr60.add(t, r.hr); R.exs.add(t, r.exs); }
     while (f < fng.length && fng[f].t <= t) R.fng.add(fng[f].t, fng[f++].v);
     const fAvg = R.fng.n && t - R.fng.q[R.fng.q.length - 1][0] < 5 * DAY ? R.fng.mean : null;
 
@@ -150,7 +151,7 @@ export function scoreSeries(rows, ctx = {}) {
       score = r1(got / max * 100);
       if (i === rows.length - 1) lastParts = ps.map((p) => ({...p, pts: r1(p.pts)}));
     }
-    insert(H.z, z); insert(H.ma, maR); if (rel != null) insert(H.rel, rel); if (ssr != null) insert(H.ssr, ssr);
+    if (keep) { insert(H.z, z); insert(H.ma, maR); if (rel != null) insert(H.rel, rel); if (ssr != null) insert(H.ssr, ssr); }
     return {...r, score};
   });
   return {rows: out, parts: lastParts};
@@ -180,10 +181,13 @@ export function buildSeries(hist, cm, chart, price, today) {
   for (const p of cm || []) push(p);
   if (!cm?.length) for (const p of chart || []) if (p.date > base.date) push(est(p.date, p.price)); // brak Coin Metrics: MVRV z ostatniej znanej realized price
   if (price) push(est(today, price));
-  // Co 3 dni jak historia (żeby ostatnie miesiące nie ważyły więcej w percentylach); najnowszy punkt zawsze.
+  // Wszystkie dni zostają (wykresy i dno cyklu z cen dziennych), ale do percentyli i średnich trafia punkt co 3 dni
+  // jak w historii, żeby ostatnie miesiące nie ważyły więcej. Pozostałe dni są oznaczone thin.
   let prev = base;
   tail.forEach((p, i) => {
-    if (i === tail.length - 1 || Date.parse(p.date) - Date.parse(prev.date) >= 3 * DAY) { rows.push(p); prev = p; }
+    const keep = i === tail.length - 1 || Date.parse(p.date) - Date.parse(prev.date) >= 3 * DAY;
+    rows.push(keep ? p : {...p, thin: true});
+    if (keep) prev = p;
   });
   return rows;
 }

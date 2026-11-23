@@ -113,6 +113,8 @@ function render() {
   $('t-bt').textContent = d && m ? pct((1 - m.avg_cost / d.avg_cost) * 100) : '—';
   $('t-bt-lbl').textContent = 'Backtest ' + (p0 || '');
   const z = zone(s.score);
+  const zl = $('zone-lbl'); zl.replaceChildren(z.name);
+  const sm = document.createElement('small'); sm.textContent = z.action; zl.append(sm); zl.style.color = COLOR[z.key];
   $('explain').textContent = s.explain || '';
   $('explain').style.borderColor = COLOR[z.key];
   const tp = s.tp;
@@ -285,7 +287,6 @@ function drawGauge(s, sym) {
   t(-26, '9px', 'var(--dim)', sym + ' · BUY SCORE', {'letter-spacing': '.25em'});
   t(18, '46px', color, Math.round(score), {'font-weight': 600, filter: `drop-shadow(0 0 10px ${color})`});
   t(40, '11px', 'var(--fg)', `/100 · DCA ${xmult(s.mult)}`, {'letter-spacing': '.15em'});
-  t(58, '9px', color, zone(score).name.toUpperCase(), {'letter-spacing': '.2em'});
   [0, 25, 50, 75, 100].forEach((v) => g.append('text').attr('x', 126 * Math.sin(ang(v))).attr('y', -126 * Math.cos(ang(v)) + 4).attr('text-anchor', 'middle').style('fill', 'var(--dim)').style('font-size', '9px').style('font-family', 'var(--mono)').text(v));
 }
 
