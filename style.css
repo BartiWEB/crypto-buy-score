@@ -101,6 +101,8 @@ details summary{cursor:pointer;padding:6px 0}
   .tw td:not([data-label])::before{content:none}
   .tw td.src{min-width:0;font-size:.8rem}
   .tw td.grp{justify-content:flex-start;font-family:var(--mono)}
+  .tw td:first-child{justify-content:flex-start;text-align:left;font-weight:600;color:var(--cyan);font-size:.9rem}
+  .tw td:first-child::before{content:none}
   .tw td.num{text-align:right}
   .tabs{gap:6px}
   .tab{padding:9px 12px;letter-spacing:.12em;flex:1;text-align:center}
