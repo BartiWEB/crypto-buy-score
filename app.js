@@ -154,6 +154,13 @@ function render() {
   drawHeat(monthly(state.series[sym]));
 }
 
+// Na telefonie tabele układają się w karty: każda komórka dostaje podpis z nagłówka kolumny.
+function labelTables() {
+  for (const tb of document.querySelectorAll('table')) {
+    const heads = [...tb.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    for (const tr of tb.querySelectorAll('tbody tr')) [...tr.cells].forEach((td, i) => { if (heads[i] && !td.classList.contains('grp')) td.dataset.label = heads[i]; });
+  }
+}
 function rows(id, data) {
   const tb = $(id); tb.replaceChildren();
   for (const r of data) {
@@ -163,6 +170,7 @@ function rows(id, data) {
       if (Array.isArray(c)) { if (c[0]) td.className = c[0]; td.textContent = c[1]; if (c[2]) td.style.color = c[2]; } else td.textContent = c;
     }
   }
+  labelTables();
 }
 
 function planInputs() {
@@ -222,6 +230,7 @@ function renderPortfolio() {
     b.addEventListener('click', () => { state.txs = state.txs.filter((x) => x.id !== t.id); saveTxs(); });
     td.append(b);
   }
+  labelTables();
   const zl = (v) => fmtPln(v, 2);
   rows('pit-rows', pit(state.txs).map((y) => [y.year, ['num', zl(y.income)], ['num', zl(y.cost)], ['num', zl(y.prior)], ['num', zl(y.gain)], ['num', fmtPln(y.tax, 0)], ['num', zl(y.carryOut)]]));
 }
@@ -282,11 +291,12 @@ function drawGauge(s, sym) {
   const va = d3.arc().innerRadius(78).outerRadius(88).cornerRadius(2);
   g.append('path').attr('d', va({startAngle: ang(0), endAngle: ang(100)})).style('fill', 'rgba(56,189,248,.08)');
   g.append('path').attr('d', va({startAngle: ang(0), endAngle: ang(Math.min(100, score))})).style('fill', color).style('filter', `drop-shadow(0 0 8px ${color})`);
-  g.append('circle').attr('r', 66).attr('fill', 'rgba(5,15,28,.85)').style('stroke', 'var(--line)');
+  g.append('circle').attr('r', 72).attr('fill', 'rgba(5,15,28,.85)').style('stroke', 'var(--line)');
   const t = (y, size, fill, txt, extra = {}) => { const e = g.append('text').attr('y', y).attr('text-anchor', 'middle').style('fill', fill).style('font-family', 'var(--mono)').style('font-size', size).text(txt); Object.entries(extra).forEach(([k, v]) => e.style(k, v)); };
-  t(-26, '9px', 'var(--dim)', sym + ' · BUY SCORE', {'letter-spacing': '.25em'});
-  t(18, '46px', color, Math.round(score), {'font-weight': 600, filter: `drop-shadow(0 0 10px ${color})`});
-  t(40, '11px', 'var(--fg)', `/100 · DCA ${xmult(s.mult)}`, {'letter-spacing': '.15em'});
+  // Teksty mieszczą się w wewnętrznym kole (średnica 144), żeby nie nachodziły na łuk.
+  t(-30, '9px', 'var(--dim)', sym + ' · WYNIK', {'letter-spacing': '.18em'});
+  t(16, '46px', color, Math.round(score), {'font-weight': 600, filter: `drop-shadow(0 0 10px ${color})`});
+  t(38, '11px', 'var(--fg)', `DCA ${xmult(s.mult)}`, {'letter-spacing': '.12em'});
   [0, 25, 50, 75, 100].forEach((v) => g.append('text').attr('x', 126 * Math.sin(ang(v))).attr('y', -126 * Math.cos(ang(v)) + 4).attr('text-anchor', 'middle').style('fill', 'var(--dim)').style('font-size', '9px').style('font-family', 'var(--mono)').text(v));
 }
 
