@@ -88,3 +88,26 @@ td.grp{color:var(--cyan);font-weight:600;background:rgba(56,217,245,.04)}
 .btn:hover{background:rgba(56,217,245,.12)}
 details summary{cursor:pointer;padding:6px 0}
 #tx-form .field input{width:7.5em}
+
+/* Telefon: tabele jako karty, bez przewijania w bok */
+@media (max-width:600px){
+  .tw{overflow-x:visible;border:none;background:none}
+  .tw table,.tw tbody,.tw tr,.tw td{display:block;width:100%}
+  .tw thead{display:none}
+  .tw tr{background:var(--panel);border:1px solid var(--line);margin-bottom:8px;padding:6px 0}
+  .tw td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;white-space:normal;text-align:right;border:none;padding:5px 12px;min-width:0;overflow-wrap:anywhere}
+  .tw td:empty{display:none}
+  .tw td::before{content:attr(data-label);font-family:var(--mono);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;flex:none;max-width:45%}
+  .tw td:not([data-label])::before{content:none}
+  .tw td.src{min-width:0;font-size:.8rem}
+  .tw td.grp{justify-content:flex-start;font-family:var(--mono)}
+  .tw td.num{text-align:right}
+  .tabs{gap:6px}
+  .tab{padding:9px 12px;letter-spacing:.12em;flex:1;text-align:center}
+  h1{letter-spacing:.12em}
+  .zone{font-size:1.05rem;letter-spacing:.16em}
+  .rstat{flex-wrap:wrap;gap:4px 12px}
+  #tx-form .field{flex:1 1 40%}
+  #tx-form .field input,#tx-form .field select{width:100%}
+  .form .field input{max-width:100%}
+}
