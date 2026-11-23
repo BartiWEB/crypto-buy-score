@@ -183,8 +183,8 @@ function renderPlan() {
   const p = plan(budget, w, state.scores, Object.keys(vals).length ? vals : null);
   const name = (s) => (s === 'GOLD' ? 'Złoto' : s);
   rows('plan-rows', p.rows.map((r) => [name(r.sym), ['num', Math.round(r.share * 100) + '%'], ['num', r.cur == null ? '—' : Math.round(r.cur * 100) + '%'], ['num', r.score == null ? '—' : num(r.score)], ['num', xmult(r.mult)],
-    ['num', fmtPln(r.amount) + (fx() ? ' · ' + fmtUsd(r.amount / fx()) : ''), r.over ? 'var(--dim)' : null]]));
-  $('plan-total').textContent = `${fmtPln(p.total)}${fx() ? ' · ' + fmtUsd(p.total / fx()) : ''} (${num(budget ? p.total / budget : 0, 1)}× budżetu)`;
+    ['num', fmtPln(r.amount, 2) + (fx() ? ' · ' + fmtUsd(r.amount / fx(), 2) : ''), r.over ? 'var(--dim)' : null]]));
+  $('plan-total').textContent = `${fmtPln(p.total, 2)}${fx() ? ' · ' + fmtUsd(p.total / fx(), 2) : ''} (${num(budget ? p.total / budget : 0, 1)}× budżetu)`;
   const notes = [];
   if (p.rebalanced) notes.push('Rebalancing: ' + p.rows.filter((r) => r.over).map((r) => `${name(r.sym)} ma ${Math.round(r.cur * 100)}% portfela przy docelowych ${Math.round(r.share * 100)}%`).join(', ') + ', więc w tym tygodniu jego część idzie na pozostałe aktywa.');
   const sells = p.rows.filter((r) => state.scores[r.sym].tp && vals[r.sym]);
@@ -220,7 +220,8 @@ function renderPortfolio() {
     b.addEventListener('click', () => { state.txs = state.txs.filter((x) => x.id !== t.id); saveTxs(); });
     td.append(b);
   }
-  rows('pit-rows', pit(state.txs).map((y) => [y.year, ['num', fmtPln(y.income)], ['num', fmtPln(y.cost)], ['num', fmtPln(y.prior)], ['num', fmtPln(y.gain)], ['num', fmtPln(y.tax)], ['num', fmtPln(y.carryOut)]]));
+  const zl = (v) => fmtPln(v, 2);
+  rows('pit-rows', pit(state.txs).map((y) => [y.year, ['num', zl(y.income)], ['num', zl(y.cost)], ['num', zl(y.prior)], ['num', zl(y.gain)], ['num', fmtPln(y.tax, 0)], ['num', zl(y.carryOut)]]));
 }
 async function addTx(e) {
   e.preventDefault();
@@ -342,7 +343,7 @@ function drawHistory(series, sym) {
   const segs = data.slice(1).map((r, i) => [data[i], r]);
   svg.append('g').selectAll('line').data(segs).join('line').attr('x1', (s) => x(s[0].d)).attr('y1', (s) => y1(s[0].price)).attr('x2', (s) => x(s[1].d)).attr('y2', (s) => y1(s[1].price))
     .style('stroke', (s) => COLOR[bucket(s[1].score)]).attr('stroke-width', 1.6);
-  svg.append('path').datum(data).attr('fill', 'none').style('stroke', 'var(--cyan)').attr('stroke-width', 1.2).style('filter', 'drop-shadow(0 0 3px rgba(56,217,245,.8))').attr('d', d3.line().x((r) => x(r.d)).y((r) => y2(r.score)));
+  svg.append('path').datum(data).attr('fill', 'none').style('stroke', 'var(--cyan)').attr('stroke-width', 1.2).style('filter', 'drop-shadow(0 0 3px rgba(56,217,245,.8))').attr('d', d3.line().defined((r) => r.score != null).x((r) => x(r.d)).y((r) => y2(r.score)));
   const bis = d3.bisector((r) => r.d).center;
   hover(el, svg, W, x, m.t, H - m.b, (t) => { const r = data[bis(data, t)]; return r && {x: x(r.d), d: r}; },
     (r) => `${d3.utcFormat('%d.%m.%Y')(r.d)} · ${fmtUsd(r.price)} · wynik ${r.score == null ? '—' : Math.round(r.score)}`);

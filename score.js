@@ -160,7 +160,7 @@ export function scoreSeries(rows, ctx = {}) {
 export function explain(name, score, parts) {
   if (score == null) return '';
   const z = zone(score);
-  const ranked = parts.filter((p) => p.max >= 4).map((p) => ({...p, r: p.pts / p.max}));
+  const ranked = parts.filter((p) => p.max >= 6).map((p) => ({...p, r: p.pts / p.max}));
   const best = [...ranked].sort((a, b) => b.r - a.r)[0], worst = [...ranked].sort((a, b) => a.r - b.r)[0];
   const why = score >= 50 ? (best ? ` Najmocniej za zakupem przemawia wskaźnik „${best.label}”.` : '') : (worst ? ` Najbardziej ostrzega wskaźnik „${worst.label}”.` : '');
   return `${name}: ${z.name.toLowerCase()} (${Math.round(score)}/100). ${z.action}${why}`;
@@ -349,12 +349,12 @@ export function monthly(series) {
 
 // ---------- formatowanie: $ i zł ----------
 const dec = (v) => (v >= 1000 ? 0 : v >= 10 ? 2 : 4);
-export function fmtUsd(v) {
-  v = Number(v); const d = dec(Math.abs(v));
+export function fmtUsd(v, d) {
+  v = Number(v); d ??= dec(Math.abs(v));
   return v.toLocaleString('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}) + ' $';
 }
-export function fmtPln(v) {
-  v = Number(v); const d = Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 10 ? 2 : 4;
+export function fmtPln(v, d) {
+  v = Number(v); d ??= Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 10 ? 2 : 4;
   return v.toLocaleString('pl-PL', {minimumFractionDigits: d, maximumFractionDigits: d}) + ' zł';
 }
 // Cena w obu walutach; bez kursu tylko w $.
