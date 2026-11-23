@@ -234,7 +234,7 @@ async function addTx(e) {
     try { const r = await nbpRateBefore(tx.date); Object.assign(tx, {rate: r.rate, rateDate: r.date, table: r.table}); } catch { msg.textContent = 'Nie udało się pobrać kursu NBP. Spróbuj ponownie albo wpisz kwotę w zł.'; return; }
   }
   state.txs.push(tx); saveTxs();
-  msg.textContent = `Dodano: ${tx.type === 'buy' ? 'kupno' : 'sprzedaż'} ${tx.qty} ${tx.asset}` + (tx.rate ? ` (kurs NBP ${num(tx.rate, 4)} z ${tx.rateDate})` : '') + '.';
+  msg.textContent = `Dodano: ${tx.type === 'buy' ? 'kupno' : 'sprzedaż'} ${num(tx.qty, 8).replace(/,?0+$/, '')} ${tx.asset}` + (tx.rate ? ` (kurs NBP ${num(tx.rate, 4)} z ${tx.rateDate})` : '') + '.';
   ['tx-qty', 'tx-value', 'tx-fee'].forEach((id) => ($(id).value = ''));
 }
 function download(name, text) {
